@@ -7,7 +7,7 @@ import (
 
 type APN struct {
 	name       string
-	useage     int  //流量使用量sdjkajdka
+	useage     int  //流量使用量
 	Tlimit     int  //流量上限
 	Expiration Time //到期时间
 }
@@ -55,8 +55,6 @@ func activation(S Sim) {
 	}
 } //激活
 func change(S Sim, a1 int, a2 int) {
-
-	fmt.Printf("请输入流量上限\n")
 
 	S.apn[1].Tlimit = a1
 	S.apn[2].Tlimit = a2
