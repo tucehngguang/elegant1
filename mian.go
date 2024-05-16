@@ -8,7 +8,7 @@ import (
 type APN struct {
 	name       string
 	useage     int  //流量使用量
-	Tlimit     int  //流量上限jhdsdjksahkdfhas
+	Tlimit     int  //流量上限
 	Expiration Time //到期时间
 }
 type Time struct {
@@ -23,7 +23,7 @@ type Sim struct {
 	state      string
 	useage     int  //流量使用量
 	Tlimit     int  //流量上限
-	Expiration Time //到期时间12121212
+	Expiration Time //到期时间12121212666454556454
 	apn        [50]APN
 }
 
