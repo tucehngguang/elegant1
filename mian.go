@@ -25,7 +25,7 @@ type Sim struct {
 	Tlimit     int  //流量上限
 	Expiration Time //到期时间12121212
 	apn        [50]APN
-}
+} //已修改
 
 func menu() {
 
