@@ -150,6 +150,7 @@ func main() {
 		fmt.Println("3是查看卡的使用流量是否达到上限")
 		fmt.Println("4是输入卡的到期时间")
 		fmt.Println("5为查看卡是否到期")
+		fmt.Println("6为打印卡的信息")
 		fmt.Println("-----------------------")
 		fmt.Scan(&choice)
 		switch choice {
