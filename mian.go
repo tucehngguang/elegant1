@@ -7,7 +7,7 @@ import (
 
 type APN struct {
 	name       string
-	useage     int  //流量使用量dsofjsd
+	useage     int  //流量使用量dsofjsdjkhkjhg
 	Tlimit     int  //流量上限
 	Expiration Time //到期时间
 }
