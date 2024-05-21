@@ -110,8 +110,8 @@ func printsim(S *Sim) {
 	fmt.Printf("Sim imsi为: %v\n", S.imsi)
 	fmt.Printf("Sim msisdn为: %v\n", S.msisdn)
 	fmt.Printf("Sim 状态为: %v\n", S.state)
-	fmt.Printf("Sim 流量使用量为: %v\n", S.useage)
-	fmt.Printf("Sim 流量上限为: %v\n", S.Tlimit)
+	fmt.Printf("Sim 流量使用量为: %vKB\n", S.useage)
+	fmt.Printf("Sim 流量上限为: %vKB\n", S.Tlimit)
 	fmt.Printf("Sim 到期时间为: %#v\n", S.Expiration)
 }
 func main() {
