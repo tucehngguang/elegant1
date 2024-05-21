@@ -7,7 +7,7 @@ import (
 
 type APN struct {
 	name       string
-	useage     int  //流量使用量llplplplpl555
+	useage     int  //流量使用量
 	Tlimit     int  //流量上限
 	Expiration Time //到期时间
 }
@@ -23,9 +23,9 @@ type Sim struct {
 	state      string
 	useage     int  //流量使用量
 	Tlimit     int  //流量上限
-	Expiration Time //到期时间12121212
+	Expiration Time //到期时间
 	apn        [50]APN
-} //已修改
+} //
 
 func menu() {
 
@@ -43,7 +43,7 @@ func menu() {
 func activation(S *Sim) {
 	if S.state == "未启用" {
 		S.state = "激活"
-		fmt.Printf("%s", S.state)
+		fmt.Printf("sim卡的状态为%s\n", S.state)
 		return
 	}
 	if S.state == "停用" {
@@ -127,7 +127,7 @@ func main() {
 	sim.iccid = "xx"
 	sim.imsi = "xxx"
 	sim.msisdn = "xxxx"
-	sim.state = "激活" //卡初始状态
+	sim.state = "未启用" //卡初始状态
 	sim.apn[1].name = "apn1"
 	sim.apn[2].name = "apn2" //apn名字
 	sim.apn[1].Tlimit = 6
