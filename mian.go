@@ -122,7 +122,7 @@ func main() {
 	var ua2 int //使用流量
 	var sim Sim
 	var ta1 Time
-	var ta2 Time //到期时间
+	var ta2 Time //到期时间13213132132312
 	sim.iccid = "xx"
 	sim.imsi = "xxx"
 	sim.msisdn = "xxxx"
