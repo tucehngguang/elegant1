@@ -56,7 +56,6 @@ func activation(S *Sim) {
 	}
 } //激活
 func change(S *Sim, a1 int, a2 int) {
-
 	S.apn[1].Tlimit = a1
 	S.apn[2].Tlimit = a2
 	S.Tlimit = max(a1, a2)
