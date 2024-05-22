@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"strconv"
 	"time"
+
+	"github.com/go-redis/redis/v8"
 )
 
 type APN struct {
@@ -24,7 +28,7 @@ type Sim struct {
 	useage     int  //流量使用量
 	Tlimit     int  //流量上限
 	Expiration Time //到期时间12121212666454556454
-	apn        [50]APN
+	apn        [1000]APN
 } //已修改
 
 func menu() {
@@ -37,7 +41,6 @@ func menu() {
 	fmt.Println("4是输入卡的到期时间")
 	fmt.Println("5为查看卡是否到期")
 	fmt.Println("-----------------------------")
-
 }
 func activation(S *Sim) {
 	if S.state == "未启用" {
@@ -54,11 +57,39 @@ func activation(S *Sim) {
 		return
 	}
 } //激活
-func change(S *Sim, a1 int, a2 int) {
-
+func change(S *Sim, a1 int, a2 int, client *redis.Client) {
+	hashKey := "SIM1"
 	S.apn[1].Tlimit = a1
 	S.apn[2].Tlimit = a2
 	S.Tlimit = max(a1, a2)
+	judge, erro := client.HExists(context.Background(), hashKey, "Tlimit").Result()
+	if erro != nil {
+		fmt.Println("不存在")
+	} //判断是否存在该卡的流量上限
+	if judge == true {
+		val, err := client.HGet(context.Background(), hashKey, "Tlimit").Result()
+		if err != nil {
+			panic(err)
+		}
+		i, err := strconv.Atoi(val)
+		if err != nil {
+			fmt.Println("not")
+		} //转换成int
+		if S.Tlimit > i {
+			m := strconv.Itoa(S.Tlimit)
+			err = client.HSet(context.Background(), hashKey, "Tlimit", m).Err()
+			if err != nil {
+				fmt.Printf("111111")
+			} else {
+				fmt.Printf("")
+			}
+
+		}
+		fmt.Println("exist")
+	} else {
+		fmt.Println("not")
+	} //判断是否存在改卡的流量上限
+
 	fmt.Printf("apn1的流量上限为%dKB\n", a1)
 	fmt.Printf("apn2的流量上限为%dKB\n", a2)
 	fmt.Printf("sim卡的流量上限为%dKB\n", S.Tlimit)
@@ -71,7 +102,6 @@ func detection(S *Sim, ua1 int, ua2 int) {
 	if S.apn[1].useage > S.apn[1].Tlimit || S.apn[2].useage > S.apn[2].Tlimit || S.useage > S.Tlimit {
 		S.state = "停用"
 		fmt.Printf("卡已到期sim卡的状态为%s\n", S.state)
-
 	} else {
 		fmt.Printf("还有空余流量\n")
 
@@ -143,6 +173,33 @@ func main() {
 	sim.apn[2].Expiration.day = 1
 	//卡的截止时间
 	menu() //菜单打印
+	client := redis.NewClient(&redis.Options{
+		Addr:     "192.168.24.225:6379", // Redis服务器地址
+		Password: "",                    // 可选：如果有密码的话
+		DB:       0,                     // 使用的数据库编号
+	}) //redis数据库引入
+
+	// 使用Ping测试连接
+	hashKey := "SIM1"
+
+	// 使用HMSet方法设置多个哈希字段及其对应的值
+	fieldsAndValues := map[string]interface{}{
+		"ICCID":            "xx",
+		"IMSI":             "xxx",
+		"MSISDN":           "xxxx",
+		"State":            "未启用",
+		"Tlimit":           "6",
+		"Expirationyear":   "2024",
+		"Expirationymonth": "6",
+		"Expirationday":    "30",
+	}
+
+	err := client.HMSet(context.Background(), hashKey, fieldsAndValues).Err()
+	if err != nil {
+		fmt.Println("Error setting hash fields:", err)
+		return
+	}
+
 	for {
 		fmt.Println("是否开始操作")
 		fmt.Println("1为状态激活")
@@ -169,7 +226,7 @@ func main() {
 			{
 				fmt.Printf("请输入流量上限\n")
 				fmt.Scan(&la1, &la2)
-				change(&sim, la1, la2)
+				change(&sim, la1, la2, client)
 
 			} //变更卡的流量上限
 		case 3:
@@ -196,4 +253,5 @@ func main() {
 		}
 
 	}
+
 }
