@@ -17,25 +17,41 @@ type Time struct {
 	day   int
 } //到期时间
 type Sim struct {
-	gorm.Model
+	ID         uint      `gorm:"primary_key"`
 	ICCID      string    `gorm:"type:varchar(12)"`
 	IMSI       string    `gorm:"type:varchar(12)"`
 	MSISDN     string    `gorm:"type:varchar(12)"`
 	STATE      string    `gorm:"type:varchar(12)"`
 	USEAGE     int       //流量使用量
 	Tlimit     int       //流量上限
-	Expiration time.Time //到期时间12121212666454556454
-	APN        []APN     `gorm:"many2many: sim_apn;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Expiration time.Time `gorm:"type:datetime"` //到期时间12121212666454556454
+	APN        []APN     `gorm:"many2many:sim_apn;constraint:OnUpdate:CASCADE,OnDelete:CASCADE; "`
 }
 
 type APN struct {
-	gorm.Model
+	ID         uint      `gorm:"primary_key"`
 	ICCID      string    `gorm:"type:varchar(12)"`
 	NAME       string    `gorm:"type:varchar(12)"`
 	USEAGE     int       //流量使用量
 	Tlimit     int       //流量上限
-	Expiration time.Time //到期时间
+	Expiration time.Time `gorm:"type:datetime"` //到期时间
 	Sims       []Sim     `gorm:"many2many: sim_apn;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+}
+
+func printsql(dsn string) {
+	var sim Sim
+	db, err := gorm.Open(mysql.Open(dsn))
+	if err != nil {
+		panic("连接数据库失败，error=" + err.Error())
+	}
+	db.Preload("APN").Where(" icc_id= ?", "210").First(&sim)
+	fmt.Printf("SIM: ICCID: %s, IMSI: %s, MSISDN: %s, STATE: %s, USEAGE: %d, Tlimit: %d, Expiration: %v\n",
+		sim.ICCID, sim.IMSI, sim.MSISDN, sim.STATE, sim.USEAGE, sim.Tlimit, sim.Expiration)
+	for _, apn := range sim.APN {
+		fmt.Printf("APN: NAME: %s, USEAGE: %d, Tlimit: %d, Expiration: %v\n",
+			apn.NAME, apn.USEAGE, apn.Tlimit, apn.Expiration)
+	}
+
 }
 
 // 已修改
@@ -46,7 +62,7 @@ func creatsql(dsn string) {
 		panic("连接数据库失败，error=" + err.Error())
 	}
 
-	for i = 1; i < 5; i++ {
+	for i = 1; i < 1001; i++ {
 
 		// 将字符串转换为整数
 
@@ -158,13 +174,40 @@ func change(S *Sim, a1 int, a2 int, client *redis.Client) {
 	fmt.Printf("apn2的流量上限为%dKB\n", a2)
 	fmt.Printf("sim卡的流量上限为%dKB\n", S.Tlimit)
 } //查看流量上限
-func detection(S *Sim, ua1 int, ua2 int) {
+func detection(S *Sim, ua1 int, ua2 int, dsn string) {
 	fmt.Printf("请输入使用的流量\n")
+	db, err := gorm.Open(mysql.Open(dsn))
+	if err != nil {
+		panic("连接数据库失败，error=" + err.Error())
+	}
 	S.USEAGE = ua1 + ua2
-	S.APN[1].USEAGE = ua1
-	S.APN[2].USEAGE = ua2
-	if S.APN[1].USEAGE > S.APN[1].Tlimit || S.APN[2].USEAGE > S.APN[2].Tlimit || S.USEAGE > S.Tlimit {
+	S.APN[0].USEAGE = ua1
+	S.APN[1].USEAGE = ua2
+	if S.APN[1].USEAGE > S.APN[1].Tlimit || S.APN[0].USEAGE > S.APN[0].Tlimit || S.USEAGE > S.Tlimit {
 		S.STATE = "停用"
+		result := db.Model(&Sim{}).Where("icc_id = ?", S.ICCID).Updates(Sim{
+			USEAGE: ua1 + ua2,
+			STATE:  "停用",
+		})
+		if result.Error != nil {
+			fmt.Println("连接数据库成功")
+		}
+		result2 := db.Model(&APN{}).Where("name= ?", "apn1").Where("icc_id = ?", S.ICCID).Updates(APN{
+			USEAGE:     ua1,
+			Expiration: time.Now().AddDate(2, 0, 0),
+		})
+
+		if result2.Error != nil {
+			fmt.Println("连接数据库成功")
+		}
+		result3 := db.Model(&APN{}).Where("name= ?", "apn2").Where("icc_id = ?", S.ICCID).Updates(APN{
+			USEAGE:     ua2,
+			Expiration: time.Now().AddDate(2, 0, 0),
+		})
+
+		if result3.Error != nil {
+			fmt.Println("连接数据库成功")
+		}
 		fmt.Printf("卡已到期sim卡的状态为%s\n", S.STATE)
 	} else {
 		fmt.Printf("还有空余流量\n")
@@ -227,9 +270,9 @@ func main() {
 	host := "localhost" //数据库地址
 	port := "3306"      //端口
 	Dnname := "study"   //数据库名
-	timeout := "10s"    //连接超时，10s
+
 	//root:root@tcp(127.0.0.1:3306)/test？
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?timeout=%s", username, password, host, port, Dnname, timeout)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", username, password, host, port, Dnname)
 	//连接mysql，获得DB类型实例，用于后面数据库的读写操作
 	db, err := gorm.Open(mysql.Open(dsn))
 	if err != nil {
@@ -242,22 +285,22 @@ func main() {
 			IMSI:       "31",
 			MSISDN:     "123",
 			STATE:      "ac",
-			USEAGE:     150,
-			Tlimit:     1000,
+			USEAGE:     2,
+			Tlimit:     6,
 			Expiration: time.Now().AddDate(1, 0, 0), // 假设一年后到期
 			APN: []APN{
 				{
 					ICCID:      "210",
 					NAME:       "apn1",
-					USEAGE:     100,
-					Tlimit:     500,
+					USEAGE:     2,
+					Tlimit:     6,
 					Expiration: time.Now().AddDate(1, 0, 0),
 				},
 				{
 					ICCID:      "210",
 					NAME:       "apn2",
-					USEAGE:     100,
-					Tlimit:     500,
+					USEAGE:     3,
+					Tlimit:     6,
 					Expiration: time.Now().AddDate(1, 0, 0),
 				},
 			},
@@ -356,7 +399,7 @@ func main() {
 			{
 				fmt.Printf("请输入已使用流量\n")
 				fmt.Scan(&ua1, &ua2)
-				detection(&sim[0], ua1, ua2)
+				detection(&sim[0], ua1, ua2, dsn)
 
 			} //查看卡的使用流量是否达到上限
 		case 4:
@@ -377,6 +420,11 @@ func main() {
 			{
 
 				creatsql(dsn)
+			}
+		case 8:
+			{
+
+				printsql(dsn)
 			}
 		}
 
