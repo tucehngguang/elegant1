@@ -2,12 +2,12 @@ module main
 
 go 1.22.3
 
-require github.com/go-redis/redis/v8 v8.11.5
-
 require (
-	github.com/rabbitmq/amqp091-go v1.7.0 // indirect
-	github.com/wagslane/go-rabbitmq v0.13.0 // indirect
+	github.com/go-redis/redis/v8 v8.11.5
+	github.com/wagslane/go-rabbitmq v0.13.0
 )
+
+require github.com/rabbitmq/amqp091-go v1.7.0 // indirect
 
 require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
