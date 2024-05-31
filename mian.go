@@ -44,19 +44,32 @@ type APN struct {
 }
 
 func printsql(dsn string) {
-	var sim Sim
+
 	db, err := gorm.Open(mysql.Open(dsn))
 	if err != nil {
 		panic("连接数据库失败，error=" + err.Error())
 	}
-	db.Preload("APN").Where(" icc_id= ?", "210").First(&sim)
+	fmt.Printf("请输要查询的卡号\n")
+	var iccid string
+	var sim Sim
+	var apn APN
+	var apn1 APN
+	fmt.Scan(&iccid)
+	if result := db.First(&sim, "icc_id = ?", iccid); result.Error != nil {
+		log.Fatal("Error finding product:", result.Error)
+	}
 	fmt.Printf("SIM: ICCID: %s, IMSI: %s, MSISDN: %s, STATE: %s, USEAGE: %d, Tlimit: %d, Expiration: %v\n",
 		sim.ICCID, sim.IMSI, sim.MSISDN, sim.STATE, sim.USEAGE, sim.Tlimit, sim.Expiration)
-	for _, apn := range sim.APN {
-		fmt.Printf("APN: NAME: %s, USEAGE: %d, Tlimit: %d, Expiration: %v\n",
-			apn.NAME, apn.USEAGE, apn.Tlimit, apn.Expiration)
+	if result := db.Where("icc_id = ? AND name = ?", iccid, "apn1").First(&apn); result.Error != nil {
+		log.Fatal("Error finding product:", result.Error)
 	}
-
+	fmt.Printf("APN1 Details: ICCID: %s Name: %s Usage: %dLimit: %dExpiration: %s\n",
+		apn.ICCID, apn.NAME, apn.USEAGE, apn.Tlimit, apn.Expiration)
+	if result := db.Where("icc_id = ? AND name = ?", iccid, "apn2").First(&apn1); result.Error != nil {
+		log.Fatal("Error finding product:", result.Error)
+	}
+	fmt.Printf("APN2 Details: ICCID: %s Name: %s Usage: %dLimit: %dExpiration: %s\n",
+		apn1.ICCID, apn1.NAME, apn1.USEAGE, apn1.Tlimit, apn1.Expiration)
 }
 
 // 已修改
@@ -66,7 +79,6 @@ func creatsql(dsn string) {
 	if err != nil {
 		panic("连接数据库失败，error=" + err.Error())
 	}
-
 	for i = 1; i < 1001; i++ {
 
 		// 将字符串转换为整数
@@ -85,14 +97,14 @@ func creatsql(dsn string) {
 			Expiration: time.Now().AddDate(1, 0, 0), // 假设一年后到期
 			APN: []APN{
 				{
-					ICCID:      "210",
+					ICCID:      result,
 					NAME:       "apn1",
 					USEAGE:     100,
 					Tlimit:     500,
 					Expiration: time.Now().AddDate(1, 0, 0),
 				},
 				{
-					ICCID:      "210",
+					ICCID:      result,
 					NAME:       "apn2",
 					USEAGE:     100,
 					Tlimit:     500,
@@ -179,25 +191,42 @@ func change(S *Sim, a1 int, a2 int, client *redis.Client) {
 	fmt.Printf("apn2的流量上限为%dKB\n", a2)
 	fmt.Printf("sim卡的流量上限为%dKB\n", S.Tlimit)
 } //查看流量上限
-func detection(S *Sim, ua1 int, ua2 int, dsn string) {
-	fmt.Printf("请输入使用的流量\n")
+func detection(ua1 int, ua2 int, dsn string) {
+
 	db, err := gorm.Open(mysql.Open(dsn))
 	if err != nil {
 		panic("连接数据库失败，error=" + err.Error())
 	}
-	S.USEAGE = ua1 + ua2
-	S.APN[0].USEAGE = ua1
-	S.APN[1].USEAGE = ua2
-	if S.APN[1].USEAGE > S.APN[1].Tlimit || S.APN[0].USEAGE > S.APN[0].Tlimit || S.USEAGE > S.Tlimit {
-		S.STATE = "停用"
-		result := db.Model(&Sim{}).Where("icc_id = ?", S.ICCID).Updates(Sim{
+	fmt.Printf("请输入修改的卡号\n")
+	var iccid string
+	var sim Sim
+	var apn APN
+	var apn1 APN
+	fmt.Scan(&iccid)
+	if result := db.First(&sim, "icc_id = ?", iccid); result.Error != nil {
+		log.Fatal("Error finding product:", result.Error)
+	}
+	if result := db.Where("icc_id = ? AND name = ?", iccid, "apn1").First(&apn); result.Error != nil {
+		log.Fatal("Error finding product:", result.Error)
+	}
+
+	if result := db.Where("icc_id = ? AND name = ?", iccid, "apn2").First(&apn1); result.Error != nil {
+		log.Fatal("Error finding product:", result.Error)
+	}
+
+	sim.USEAGE = ua1 + ua2
+	apn.USEAGE = ua1
+	apn1.USEAGE = ua2
+	if apn1.USEAGE > apn1.Tlimit || apn.USEAGE > apn.Tlimit || sim.USEAGE > sim.Tlimit {
+		sim.STATE = "停用"
+		result := db.Model(&Sim{}).Where("icc_id = ?", sim.ICCID).Updates(Sim{
 			USEAGE: ua1 + ua2,
 			STATE:  "停用",
 		})
 		if result.Error != nil {
 			fmt.Println("连接数据库成功")
 		}
-		result2 := db.Model(&APN{}).Where("name= ?", "apn1").Where("icc_id = ?", S.ICCID).Updates(APN{
+		result2 := db.Model(&APN{}).Where("name= ?", "apn1").Where("icc_id = ?", sim.ICCID).Updates(APN{
 			USEAGE:     ua1,
 			Expiration: time.Now().AddDate(2, 0, 0),
 		})
@@ -205,7 +234,7 @@ func detection(S *Sim, ua1 int, ua2 int, dsn string) {
 		if result2.Error != nil {
 			fmt.Println("连接数据库成功")
 		}
-		result3 := db.Model(&APN{}).Where("name= ?", "apn2").Where("icc_id = ?", S.ICCID).Updates(APN{
+		result3 := db.Model(&APN{}).Where("name= ?", "apn2").Where("icc_id = ?", sim.ICCID).Updates(APN{
 			USEAGE:     ua2,
 			Expiration: time.Now().AddDate(2, 0, 0),
 		})
@@ -253,7 +282,7 @@ func detection(S *Sim, ua1 int, ua2 int, dsn string) {
 			fmt.Println(sig)
 			done <- true
 		}()
-		s := S.ICCID + S.STATE
+		s := sim.ICCID + sim.STATE
 		fmt.Println("awaiting signal")
 		ticker := time.NewTicker(time.Second)
 		select {
@@ -275,7 +304,7 @@ func detection(S *Sim, ua1 int, ua2 int, dsn string) {
 			return
 		}
 
-		fmt.Printf("卡已到期sim卡的状态为%s\n", S.STATE)
+		fmt.Printf("卡已到期sim卡的状态为%s\n", sim.STATE)
 	} else {
 		fmt.Printf("还有空余流量\n")
 
@@ -430,6 +459,7 @@ func main() {
 
 	erro := client.HMSet(context.Background(), hashKey, fieldsAndValues).Err()
 	if erro != nil {
+
 		fmt.Println("Error setting hash fields:", err)
 		return
 	}
@@ -441,6 +471,9 @@ func main() {
 		fmt.Printf("3是查看卡的使用流量是否达到上限\n")
 		fmt.Printf("4是输入卡的到期时间\n")
 		fmt.Printf("5为查看卡是否到期\n")
+		fmt.Printf("6是打印表的信息n")
+		fmt.Printf("7为创建一千张表\n")
+		fmt.Printf("8为输出指定表的信息\n")
 		fmt.Scan(&choice)
 		switch choice {
 		case 0:
@@ -466,7 +499,7 @@ func main() {
 			{
 				fmt.Printf("请输入已使用流量\n")
 				fmt.Scan(&ua1, &ua2)
-				detection(&sim[0], ua1, ua2, dsn)
+				detection(ua1, ua2, dsn)
 
 			} //查看卡的使用流量是否达到上限
 		case 4:
@@ -486,12 +519,12 @@ func main() {
 		case 7:
 			{
 
-				creatsql(dsn)
+				creatsql(dsn) //创建一千张表
 			}
 		case 8:
 			{
 
-				printsql(dsn)
+				printsql(dsn) //打印表
 			}
 		}
 
