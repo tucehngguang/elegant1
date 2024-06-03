@@ -22,25 +22,25 @@ type Time struct {
 	day   int
 } //到期时间
 type Sim struct {
-	ID         uint      `gorm:"primary_key"`
-	ICCID      string    `gorm:"type:varchar(12)"`
-	IMSI       string    `gorm:"type:varchar(12)"`
-	MSISDN     string    `gorm:"type:varchar(12)"`
-	STATE      string    `gorm:"type:varchar(12)"`
-	USEAGE     int       //流量使用量
-	Tlimit     int       //流量上限
-	Expiration time.Time `gorm:"type:datetime"` //到期时间12121212666454556454
+	ID         uint      `gorm:"primary_key;column:ID"`
+	ICCID      string    `gorm:"type:varchar(12);column:ICCID"`
+	IMSI       string    `gorm:"type:varchar(12);column:IMSI"`
+	MSISDN     string    `gorm:"type:varchar(12);column:MSISDN"`
+	STATE      string    `gorm:"type:varchar(12);column:STATE"`
+	USEAGE     int       `gorm:"column:USEAGE"`                   //流量使用量
+	Tlimit     int       `gorm:"column:Tlimit"`                   //流量上限
+	Expiration time.Time `gorm:"type:datetime;column:Expiration"` //到期时间12121212666454556454
 	APN        []APN     `gorm:"many2many:sim_apn;constraint:OnUpdate:CASCADE,OnDelete:CASCADE; "`
 }
 
 type APN struct {
-	ID         uint      `gorm:"primary_key"`
-	ICCID      string    `gorm:"type:varchar(12)"`
-	NAME       string    `gorm:"type:varchar(12)"`
-	USEAGE     int       //流量使用量
-	Tlimit     int       //流量上限
-	Expiration time.Time `gorm:"type:datetime"` //到期时间
-	Sims       []Sim     `gorm:"many2many: sim_apn;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	ID         uint      `gorm:"primary_key;column:ID"`
+	ICCID      string    `gorm:"type:varchar(12);column:ICCID"`
+	NAME       string    `gorm:"type:varchar(12);column:NAME"`
+	USEAGE     int       `gorm:"column:USEAGE"` //流量使用量
+	Tlimit     int       `gorm:"column:Tlimit"` //流量上限
+	Expiration time.Time `gorm:"type:datetime;column:Expiration"`
+	Sim        []Sim     `gorm:"many2many: sim_apn;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 func printsql(dsn string) {
@@ -55,17 +55,17 @@ func printsql(dsn string) {
 	var apn APN
 	var apn1 APN
 	fmt.Scan(&iccid)
-	if result := db.First(&sim, "icc_id = ?", iccid); result.Error != nil {
+	if result := db.First(&sim, "ICCID = ?", iccid); result.Error != nil {
 		log.Fatal("Error finding product:", result.Error)
 	}
 	fmt.Printf("SIM: ICCID: %s, IMSI: %s, MSISDN: %s, STATE: %s, USEAGE: %d, Tlimit: %d, Expiration: %v\n",
 		sim.ICCID, sim.IMSI, sim.MSISDN, sim.STATE, sim.USEAGE, sim.Tlimit, sim.Expiration)
-	if result := db.Where("icc_id = ? AND name = ?", iccid, "apn1").First(&apn); result.Error != nil {
+	if result := db.Where("ICCID = ? AND NAME  = ?", iccid, "apn1").First(&apn); result.Error != nil {
 		log.Fatal("Error finding product:", result.Error)
 	}
 	fmt.Printf("APN1 Details: ICCID: %s Name: %s Usage: %dLimit: %dExpiration: %s\n",
 		apn.ICCID, apn.NAME, apn.USEAGE, apn.Tlimit, apn.Expiration)
-	if result := db.Where("icc_id = ? AND name = ?", iccid, "apn2").First(&apn1); result.Error != nil {
+	if result := db.Where("ICCID = ? AND NAME  = ?", iccid, "apn2").First(&apn1); result.Error != nil {
 		log.Fatal("Error finding product:", result.Error)
 	}
 	fmt.Printf("APN2 Details: ICCID: %s Name: %s Usage: %dLimit: %dExpiration: %s\n",
@@ -203,14 +203,14 @@ func detection(ua1 int, ua2 int, dsn string) {
 	var apn APN
 	var apn1 APN
 	fmt.Scan(&iccid)
-	if result := db.First(&sim, "icc_id = ?", iccid); result.Error != nil {
+	if result := db.First(&sim, "ICCID = ?", iccid); result.Error != nil {
 		log.Fatal("Error finding product:", result.Error)
 	}
-	if result := db.Where("icc_id = ? AND name = ?", iccid, "apn1").First(&apn); result.Error != nil {
+	if result := db.Where("ICCID= ? AND NAME = ?", iccid, "apn1").First(&apn); result.Error != nil {
 		log.Fatal("Error finding product:", result.Error)
 	}
 
-	if result := db.Where("icc_id = ? AND name = ?", iccid, "apn2").First(&apn1); result.Error != nil {
+	if result := db.Where("ICCID = ? AND NAME = ?", iccid, "apn2").First(&apn1); result.Error != nil {
 		log.Fatal("Error finding product:", result.Error)
 	}
 
@@ -219,14 +219,14 @@ func detection(ua1 int, ua2 int, dsn string) {
 	apn1.USEAGE = ua2
 	if apn1.USEAGE > apn1.Tlimit || apn.USEAGE > apn.Tlimit || sim.USEAGE > sim.Tlimit {
 		sim.STATE = "停用"
-		result := db.Model(&Sim{}).Where("icc_id = ?", sim.ICCID).Updates(Sim{
+		result := db.Model(&Sim{}).Where("ICCID = ?", sim.ICCID).Updates(Sim{
 			USEAGE: ua1 + ua2,
 			STATE:  "停用",
 		})
 		if result.Error != nil {
 			fmt.Println("连接数据库成功")
 		}
-		result2 := db.Model(&APN{}).Where("name= ?", "apn1").Where("icc_id = ?", sim.ICCID).Updates(APN{
+		result2 := db.Model(&APN{}).Where("NAME ?", "apn1").Where("ICCID = ?", sim.ICCID).Updates(APN{
 			USEAGE:     ua1,
 			Expiration: time.Now().AddDate(2, 0, 0),
 		})
@@ -234,7 +234,7 @@ func detection(ua1 int, ua2 int, dsn string) {
 		if result2.Error != nil {
 			fmt.Println("连接数据库成功")
 		}
-		result3 := db.Model(&APN{}).Where("name= ?", "apn2").Where("icc_id = ?", sim.ICCID).Updates(APN{
+		result3 := db.Model(&APN{}).Where("NAME= ?", "apn2").Where("ICCID = ?", sim.ICCID).Updates(APN{
 			USEAGE:     ua2,
 			Expiration: time.Now().AddDate(2, 0, 0),
 		})
@@ -417,10 +417,11 @@ func main() {
 					Expiration: time.Now().AddDate(1, 0, 0),
 				},
 				{
-					ICCID:      "210",
-					NAME:       "apn2",
-					USEAGE:     100,
-					Tlimit:     500,
+					ICCID:  "210",
+					NAME:   "apn2",
+					USEAGE: 100,
+					Tlimit: 500,
+
 					Expiration: time.Now().AddDate(1, 0, 0),
 				},
 			},
@@ -514,7 +515,7 @@ func main() {
 			}
 		case 6:
 			{
-				printsim(&sim[0])
+				printsim(&sim[0]) //打印sim
 			}
 		case 7:
 			{
