@@ -26,7 +26,7 @@ type Sim struct {
 	Expiration Time //到期时间
 	apn        [50]APN
 } //
-
+// gvfghjhghgf
 func menu() {
 
 	fmt.Println("--------系统介绍-------------")
